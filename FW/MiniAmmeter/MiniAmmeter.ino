@@ -45,13 +45,14 @@ void setup() {
 
 void loop() {
   // Cycle through the letters 'A', 'B', 'C' at position (8, 1) every second
-  drawChar(8, 1, 'A');
-  delay(500);  // Delay to make it visible for 1 second
-  drawChar(8, 1, 'B');
-  delay(500);  // Delay to make it visible for 1 second
-  drawChar(8, 1, 'C');
-  delay(500);  // Delay to make it visible for 1 second
+  drawChar(8, 0, 'A');
+  delay(500);  
+  drawChar(16, 1, 'B');
+  delay(500);  
+  drawChar(24, 2, 'C');
+  delay(500);  
   clearScreen();
+  delay(500);
 
 }
 
@@ -68,15 +69,20 @@ void clearScreen() {
 
 void drawChar(uint8_t x, uint8_t y, char c) {
   static const uint8_t font[] = {
-    // 6x8 font definition for 'A', 'B', and 'C' (add more characters as needed)
     0xFC, 0x22, 0x22, 0x22, 0xFC, 0x00,  // 'A'
     0xFE, 0x92, 0x92, 0x92, 0x6C, 0x00,  // 'B'
     0x7C, 0x82, 0x82, 0x82, 0x82, 0x00,  // 'C'
   };
 
+  // Set the cursor position using commands
+  sendCommand(0xB0 + y);        // Set the page address (y is the page)
+  sendCommand(0x00 + (x & 00001111)); // bitwise AND the last 4 bits to set the lower column start address (columns 0-15)
+  sendCommand(0x10 + (x >> 4));  // Set higher column address (shift bits right 4) (columns 16-127)
+
+  // Draw the character
   uint8_t index = (c - 'A') * 6;  // Calculate the index based on 'A'
-  
   for (uint8_t i = 0; i < 6; i++) {
     sendData(font[index + i]); // Send each byte of the character data
   }
+
 }
