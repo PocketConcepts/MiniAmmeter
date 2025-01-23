@@ -1,32 +1,27 @@
 //
 
-//  Running up a 128x32 OLED on a Digispart Attiny85 whilst waiting for some Attiny45 chips to arrive
-//  Had some issues with libraries, so just stripped it back to the bare necessities, understanding how to manipulate pixels
+// Moved to bitbang library because I connected the wrong pins on the attiny45 :(
 
 //
 
-#include <TinyWireM.h> // Include TinyWireM instead of Wire.h
+#include <I2CTinyBB.h>  // Use I2CTinyBB instead of TinyWireM
 
 #define OLED_ADDR 0x3C // I2C address for the OLED
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 32
 
 void sendCommand(uint8_t command) {
-  TinyWireM.beginTransmission(OLED_ADDR);
-  TinyWireM.write(0x00); // Command mode
-  TinyWireM.write(command);
-  TinyWireM.endTransmission();
+  uint8_t cmd[] = {0x00, command}; // Command mode and command
+  I2CWrite(OLED_ADDR, cmd, sizeof(cmd)); // Write the command
 }
 
 void sendData(uint8_t data) {
-  TinyWireM.beginTransmission(OLED_ADDR);
-  TinyWireM.write(0x40); // Data mode
-  TinyWireM.write(data);
-  TinyWireM.endTransmission();
+  uint8_t dat[] = {0x40, data}; // Data mode and data
+  I2CWrite(OLED_ADDR, dat, sizeof(dat)); // Write the data
 }
 
 void setup() {
-  TinyWireM.begin(); // Initialize TinyWireM
+  I2CInit(3, 4, 1); // Initialize I2C with custom SDA and SCL pins and optional delay count
 
   // OLED initialization sequence
   sendCommand(0xAE); // Display off
@@ -51,11 +46,13 @@ void setup() {
 void loop() {
   // Cycle through the letters 'A', 'B', 'C' at position (8, 1) every second
   drawChar(8, 1, 'A');
-  delay(0);
+  delay(500);  // Delay to make it visible for 1 second
   drawChar(8, 1, 'B');
-  delay(0);
+  delay(500);  // Delay to make it visible for 1 second
   drawChar(8, 1, 'C');
-  delay(0);
+  delay(500);  // Delay to make it visible for 1 second
+  clearScreen();
+
 }
 
 void clearScreen() {
