@@ -5,6 +5,7 @@
 //
 
 #include <I2CTinyBB.h>  // Use I2CTinyBB instead of TinyWireM
+#include <avr/pgmspace.h>  // Include the pgmspace.h library to use PROGMEM
 
 #define OLED_ADDR 0x3C // I2C address for the OLED
 #define SCREEN_WIDTH 128
@@ -45,11 +46,11 @@ void setup() {
 
 void loop() {
   // Cycle through the letters 'A', 'B', 'C' at position (8, 1) every second
-  drawChar(8, 0, 'A');
+  drawChar(8, 0, 0);
   delay(500);  
-  drawChar(16, 1, 'B');
+  drawChar(16, 1, 1);
   delay(500);  
-  drawChar(24, 2, 'C');
+  drawChar(24, 2, 2);
   delay(500);  
   clearScreen();
   delay(500);
@@ -67,11 +68,22 @@ void clearScreen() {
   }
 }
 
-void drawChar(uint8_t x, uint8_t y, char c) {
-  static const uint8_t font[] = {
-    0xFC, 0x22, 0x22, 0x22, 0xFC, 0x00,  // 'A'
-    0xFE, 0x92, 0x92, 0x92, 0x6C, 0x00,  // 'B'
-    0x7C, 0x82, 0x82, 0x82, 0x82, 0x00,  // 'C'
+// drawLargeChar
+//  for j in page j<4
+//  draw font [i<6, i++] at x,y
+//  j++
+// draw a 4x6 array like font[]
+// 0,1,2,3,4,5,6,7,8,9,.,-,m,A
+
+
+void drawChar(uint8_t x, uint8_t y, uint8_t c) {
+  static const uint8_t font[] PROGMEM = { // Use PROGMEM to store the font data in flash memory instead of SRAM
+    0x7C, 0x82, 0x82, 0x82, 0x7C, 0x00,   // '0'
+    0xFE, 0x92, 0x92, 0x92, 0x6C, 0x00,   // 'B'
+    0x7C, 0x82, 0x82, 0x82, 0x82, 0x00,   // 'C'
+    0x00, 0x00, 0x01, 0x00, 0x00, 0x00,   // '.'
+    
+
   };
 
   // Set the cursor position using commands
@@ -80,7 +92,7 @@ void drawChar(uint8_t x, uint8_t y, char c) {
   sendCommand(0x10 + (x >> 4));  // Set higher column address (shift bits right 4) (columns 16-127)
 
   // Draw the character
-  uint8_t index = (c - 'A') * 6;  // Calculate the index based on 'A'
+  uint8_t index = (c * 6);  
   for (uint8_t i = 0; i < 6; i++) {
     sendData(font[index + i]); // Send each byte of the character data
   }
