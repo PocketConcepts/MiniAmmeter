@@ -21,19 +21,25 @@ def update_display():
     # Flip the grid vertically (reverse the rows) before processing
     flipped_grid = grid[::-1]
 
-    # Convert flipped grid to hex values
-    hex_values = []
-    for col in range(columnCount):  # Loop over columns for the rotated grid
-        for byte_start in range(0, rowCount, 8):  # Process 8 rows (1 byte) at a time
+    # Convert flipped grid to hex values in correct order (row-major)
+    hex_values = [[] for _ in range(4)]  # 4 pages of 8 rows each
+    for col in range(columnCount):  # Process each column
+        for page in range(4):  # Each page corresponds to 8 rows
             byte = 0
-            for bit in range(8):  # Only 8 rows per byte
-                row = byte_start + bit
-                if row < rowCount:  # Ensure within bounds
-                    byte |= (flipped_grid[row][col] << (7 - bit))  # Shift and set bit
-            hex_values.append(f"0x{byte:02X}")
+            for bit in range(8):  # Process 8 rows per byte
+                row = page * 8 + bit
+                if row < rowCount:  # Ensure we're within bounds
+                    byte |= (flipped_grid[row][col] << (7 - bit))
+            hex_values[page].append(f"0x{byte:02X}")
 
-    # Print the final hex values with the flipped grid
-    print(", ".join(hex_values))
+    # Print the hex values in row-major order
+    for page in range(3, -1, -1):  # Loop through 4 pages
+        print(", ".join(hex_values[page]))  # Print 24 bytes per row
+    print("")  # Blank line after the full page
+
+
+
+    
 
 # Set up the main window
 root = tk.Tk()
