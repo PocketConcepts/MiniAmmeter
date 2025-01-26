@@ -1,13 +1,79 @@
 
 #include <I2CTinyBB.h>  // Use I2CTinyBB instead of TinyWireM
 #include <avr/pgmspace.h>  // Include the pgmspace.h library to use PROGMEM
+#include <avr/io.h>
 
 #define OLED_ADDR 0x3C // I2C address for the OLED
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 32
 
-#define R_
+//Shunt resistors
+#define R_1 0.1
+#define R_10 1
 
+// Diff amp resistors
+#define R_2 100000
+#define R_3 10000
+#define R_4 10000
+#define R_5 100000
+
+//Vref buffer resistors
+#define R_13 20000
+#define R_15 20000
+
+//ADC Pinmap
+#define VCC_PIN PB0
+#define VOUT_PIN PB1
+#define GAIN_FLAG_PIN PB2
+
+
+//#define averagingWindow 0
+
+// Calculate gain based on resistor values
+float calculateGain() {
+  return (float) R_2 / R_3;
+}
+
+// Calculate Vref based on resistor values
+float calculateResistiveDivider() {
+  return (float) (R_13 + R_15) / (R_15 * R_13);
+}
+
+uint32_t readADC(uint8_t pin, uint8_t averagingWindow) {
+  uint32_t sum = 0;  // Initialize sum before the loop
+  
+  for (int i = 0; i < averagingWindow; i++) {
+    sum += analogRead(pin);  // Add ADC value to sum
+  }
+  return sum / averagingWindow;  // Return the average
+}
+
+// Read VREF from a specific pin using the readADC function
+uint32_t readVREF(uint8_t averagingWindow) {
+  return readADC(VCC_PIN, averagingWindow) / calculateResistiveDivider();
+}
+
+//Calculate ILOAD based on transfer function
+float calculateILOAD(uint8_t averagingWindow) {
+  // Read VOUT using the ADC
+  uint32_t VOUT_ADC = readADC(VOUT_PIN, averagingWindow); 
+  
+  // Read VREF using the ADC
+  uint32_t VREF_ADC = readADC(VCC_PIN, averagingWindow) / calculateResistiveDivider();
+
+  // Calculate gain
+  float GAIN = calculateGain();
+
+  // Apply transfer function
+  float ILOAD = ((VOUT_ADC - VREF_ADC) / GAIN) / R_1;
+
+  return ILOAD;
+
+}
+
+float truncateTo3Digits(float value) {
+    return (int)(value * 100) / 100.0f;
+}
 
 void sendCommand(uint8_t command) {
   uint8_t cmd[] = {0x00, command}; // Command mode and command
@@ -22,9 +88,9 @@ void sendData(uint8_t data) {
 void setup() {
   I2CInit(3, 4, 1); // Initialize I2C with custom SDA and SCL pins and optional delay count
 
-  pinMode(PB0, INPUT);
-  pinMode(PB1, INPUT);
-  pinMode(PB2, INPUT);
+  pinMode(VCC_PIN, INPUT);
+  pinMode(VOUT_PIN, INPUT);
+  pinMode(GAIN_FLAG_PIN, INPUT);
 
   // OLED initialization sequence
   sendCommand(0xAE); // Display off
@@ -44,15 +110,6 @@ void setup() {
   sendCommand(0xAF); // Display ON
 
   clearScreen();
-}
-
-uint32_t readADC(uint8_t pin, uint8_t averagingWindow) {
-  uint32_t sum = 0;  // Initialize sum before the loop
-  
-  for (int i = 0; i < averagingWindow; i++) {
-    sum += analogRead(pin);  // Add ADC value to sum
-  }
-  return sum / averagingWindow;  // Return the average
 }
 
 void loop() {
