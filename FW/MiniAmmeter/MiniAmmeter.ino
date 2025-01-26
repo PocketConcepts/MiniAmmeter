@@ -26,8 +26,13 @@
 #define VOUT_PIN PB1
 #define GAIN_FLAG_PIN PB2
 
+// Kerning offset
+int kerning = 4;
 
-//#define averagingWindow 0
+// Array to store digit positions
+int digit_position[6];
+
+///////////////////////////////////////////////////////////////////////////////////////////////
 
 // Calculate gain based on resistor values
 float calculateGain() {
@@ -90,6 +95,16 @@ int getDigitAtPosition(int value, int position) {
     return digits[index - position - 1];
 }
 
+// Function to calculate the positions
+void calculate_digit_position() {
+    digit_position[0] = -8;
+    digit_position[1] = 8;
+    // Calculate positions for digits 2 to 5
+    for (int i = 2; i < 6; i++) {
+        digit_position[i] = digit_position[i - 1] + 24 - kerning;
+    }
+}
+
 void sendCommand(uint8_t command) {
   uint8_t cmd[] = {0x00, command}; // Command mode and command
   I2CWrite(OLED_ADDR, cmd, sizeof(cmd)); // Write the command
@@ -129,36 +144,29 @@ void setup() {
 
 void loop() {
 
-  // Kerning offset
-  int kerning = 4;
-
-  // Digit positon to starting column
-  int digit_0 = -8;
-  int digit_1 = 24 - (abs(digit_0) * 2);
-  int digit_2 = digit_1 + 24 - kerning;
-  int digit_3 = digit_2 + 24 - kerning;
-  int digit_4 = digit_3 + 24 - kerning;
-  int digit_5 = digit_4 + 24 - kerning;
-
-  // drawChar(8, 0, 0);
-  // delay(500);  
-
-  // drawLargeChar(digit_0, '-');
-  // drawLargeChar(digit_1, '0');
-  // drawLargeChar(digit_2, '0');
-  // drawLargeChar(digit_3, '0');
-  // drawLargeChar(digit_4, 'm');
-  // drawLargeChar(digit_5, 'A');
-
-  // delay(500);
-  // clearScreen();
-  // delay(500);
+  // Call function to calculate digit positions
+  calculate_digit_position();
+  
   float ILOAD = calculateILOAD(1);
 
   int c = getDigitAtPosition(1234, 1); //gets digit at position, (1234, 1 = 2)
+
+  // Draw negative sign if ILOAD is negative
+  drawNegative(ILOAD, digit_position[0]);
   
-  drawLargeChar(0, c);
+  //ILOAD = getDigitAtPosition(test, 3);
+  int test = 1234;
+
+  // Loop over each digit position (0 to 2 for 3 digits)
+  for (uint8_t i = 0; i < 3; i++) {
+      int number = getDigitAtPosition(test, i);  // Extract the digit at position i
+      drawLargeChar(digit_position[i + 1], number);  // Draw the digit at the correct position
+  }
+
+  //drawLargeChar(digit_position[4], 5);
+
   delay(100);
+
 }
 
 void clearScreen() {
@@ -170,6 +178,12 @@ void clearScreen() {
       sendData(0x00);  // Send blank data to each column
     }
   }
+}
+
+void drawNegative(float load, int position) {
+  if (load < 0) 
+    drawLargeChar(position, '-');
+    
 }
 
 void drawLargeChar(uint8_t x, uint8_t c) {
@@ -301,12 +315,10 @@ void drawLargeChar(uint8_t x, uint8_t c) {
 }
 
 void drawNumber(uint8_t x, uint8_t number) {
-  uint8_t digits[3];  // To store the individual digits
-  digits[0] = number / 100;         // Hundreds place
+  uint8_t digits[1];  // To store the individual digit (only draws one at a time)
 
-  // Draw each digit
-  for (uint8_t i = 0; i < 3; i++) {
-    drawLargeChar(x, digits[i]);
-    x += 24;  // Move x to the right for the next digit
-  }
+  digits[1] = number % 10;          // Ones place
+  // Draw digit
+  drawLargeChar(x, digits[1]);
+
 }
