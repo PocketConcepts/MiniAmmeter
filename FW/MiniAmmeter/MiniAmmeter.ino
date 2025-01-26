@@ -30,7 +30,7 @@
 int kerning = 4;
 
 // Array to store digit positions
-int digit_position[6];
+int digit_position[7];
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -100,9 +100,16 @@ void calculate_digit_position() {
     digit_position[0] = -8;
     digit_position[1] = 8;
     // Calculate positions for digits 2 to 5
-    for (int i = 2; i < 6; i++) {
+    for (int i = 2; i < 7; i++) {
         digit_position[i] = digit_position[i - 1] + 24 - kerning;
     }
+}
+
+int ampToMilliamp(float amp) {
+  float milliamp = (amp * 1000);
+  int intValue = (int)milliamp;
+  return milliamp; 
+
 }
 
 void sendCommand(uint8_t command) {
@@ -140,32 +147,32 @@ void setup() {
   sendCommand(0xAF); // Display ON
 
   clearScreen();
+
+  // Permenant A (digit_position[6])
+  drawLargeChar(108, 'A');
+
 }
 
 void loop() {
 
   // Call function to calculate digit positions
   calculate_digit_position();
-  
-  float ILOAD = calculateILOAD(1);
 
-  int c = getDigitAtPosition(1234, 1); //gets digit at position, (1234, 1 = 2)
+  float ILOAD = calculateILOAD(1); 
+  int milliamp = ampToMilliamp(ILOAD);
+
+  // Loop over each digit position
+  for (uint8_t i = 0; i < 4; i++) {
+      int number = getDigitAtPosition(milliamp, i);  // Extract the digit at position i
+      drawLargeChar(digit_position[i + 1], number);  // Draw the digit at the correct position
+  drawLargeChar(digit_position[5], 'm');
+
+  }
 
   // Draw negative sign if ILOAD is negative
   drawNegative(ILOAD, digit_position[0]);
-  
-  //ILOAD = getDigitAtPosition(test, 3);
-  int test = 1234;
 
-  // Loop over each digit position (0 to 2 for 3 digits)
-  for (uint8_t i = 0; i < 3; i++) {
-      int number = getDigitAtPosition(test, i);  // Extract the digit at position i
-      drawLargeChar(digit_position[i + 1], number);  // Draw the digit at the correct position
-  }
-
-  //drawLargeChar(digit_position[4], 5);
-
-  delay(100);
+ // delay(100);
 
 }
 
@@ -314,11 +321,3 @@ void drawLargeChar(uint8_t x, uint8_t c) {
   }
 }
 
-void drawNumber(uint8_t x, uint8_t number) {
-  uint8_t digits[1];  // To store the individual digit (only draws one at a time)
-
-  digits[1] = number % 10;          // Ones place
-  // Draw digit
-  drawLargeChar(x, digits[1]);
-
-}
