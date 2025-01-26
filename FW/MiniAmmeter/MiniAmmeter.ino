@@ -71,8 +71,23 @@ float calculateILOAD(uint8_t averagingWindow) {
 
 }
 
-float truncateTo3Digits(float value) {
-    return (int)(value * 100) / 100.0f;
+int getDigitAtPosition(int value, int position) {
+    int digits[10]; // Assuming value won't exceed 10 digits
+    int index = 0;
+
+    // Extract digits into the array
+    while (value > 0) {
+        digits[index++] = value % 10;  // Extract last digit
+        value /= 10;                  // Remove last digit
+    }
+
+    // Check for invalid position
+    if (position < 0 || position >= index) {
+        return -1; // Return -1 to indicate an invalid position
+    }
+
+    // Return the digit at the position (adjusted for reverse order)
+    return digits[index - position - 1];
 }
 
 void sendCommand(uint8_t command) {
@@ -128,17 +143,22 @@ void loop() {
   // drawChar(8, 0, 0);
   // delay(500);  
 
-  drawLargeChar(digit_0, '-');
-  drawLargeChar(digit_1, '0');
-  drawLargeChar(digit_2, '0');
-  drawLargeChar(digit_3, '0');
-  drawLargeChar(digit_4, 'm');
-  drawLargeChar(digit_5, 'A');
+  // drawLargeChar(digit_0, '-');
+  // drawLargeChar(digit_1, '0');
+  // drawLargeChar(digit_2, '0');
+  // drawLargeChar(digit_3, '0');
+  // drawLargeChar(digit_4, 'm');
+  // drawLargeChar(digit_5, 'A');
 
-  delay(500);
-  clearScreen();
-  delay(500);
+  // delay(500);
+  // clearScreen();
+  // delay(500);
+  float ILOAD = calculateILOAD(1);
 
+  int c = getDigitAtPosition(1234, 1); //gets digit at position, (1234, 1 = 2)
+  
+  drawLargeChar(0, c);
+  delay(100);
 }
 
 void clearScreen() {
@@ -246,16 +266,16 @@ void drawLargeChar(uint8_t x, uint8_t c) {
   uint32_t index;
   
   switch (c) {
-    case '0': index = 0; break;
-    case '1': index = 1; break;
-    case '2': index = 2; break;
-    case '3': index = 3; break;
-    case '4': index = 4; break;
-    case '5': index = 5; break;
-    case '6': index = 6; break;
-    case '7': index = 7; break;
-    case '8': index = 8; break;
-    case '9': index = 9; break;
+    case 0: index = 0; break;
+    case 1: index = 1; break;
+    case 2: index = 2; break;
+    case 3: index = 3; break;
+    case 4: index = 4; break;
+    case 5: index = 5; break;
+    case 6: index = 6; break;
+    case 7: index = 7; break;
+    case 8: index = 8; break;
+    case 9: index = 9; break;
     case 'm': index = 10; break;
     case 'A': index = 11; break;
     case '-': index = 12; break;
@@ -280,3 +300,13 @@ void drawLargeChar(uint8_t x, uint8_t c) {
   }
 }
 
+void drawNumber(uint8_t x, uint8_t number) {
+  uint8_t digits[3];  // To store the individual digits
+  digits[0] = number / 100;         // Hundreds place
+
+  // Draw each digit
+  for (uint8_t i = 0; i < 3; i++) {
+    drawLargeChar(x, digits[i]);
+    x += 24;  // Move x to the right for the next digit
+  }
+}
