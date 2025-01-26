@@ -19,6 +19,10 @@ void sendData(uint8_t data) {
 void setup() {
   I2CInit(3, 4, 1); // Initialize I2C with custom SDA and SCL pins and optional delay count
 
+  pinMode(PB0, INPUT);
+  pinMode(PB1, INPUT);
+  pinMode(PB2, INPUT);
+
   // OLED initialization sequence
   sendCommand(0xAE); // Display off
   sendCommand(0xD5); sendCommand(0x80); // Set display clock divide ratio
@@ -39,6 +43,15 @@ void setup() {
   clearScreen();
 }
 
+uint32_t readADC(uint8_t pin, uint8_t averagingWindow) {
+  uint32_t sum = 0;  // Initialize sum before the loop
+  
+  for (int i = 0; i < averagingWindow; i++) {
+    sum += analogRead(pin);  // Add ADC value to sum
+  }
+  return sum / averagingWindow;  // Return the average
+}
+
 void loop() {
 
   // Kerning offset
@@ -57,9 +70,9 @@ void loop() {
 
   drawLargeChar(digit0, '-');
   drawLargeChar(digit1, '0');
-  drawLargeChar(digit2, '.');
+  drawLargeChar(digit2, '0');
   drawLargeChar(digit3, '0');
-  drawLargeChar(digit4, '0');
+  drawLargeChar(digit4, 'm');
   drawLargeChar(digit5, 'A');
 
   delay(500);
@@ -77,27 +90,6 @@ void clearScreen() {
       sendData(0x00);  // Send blank data to each column
     }
   }
-}
-void drawChar(uint8_t x, uint8_t y, uint8_t c) {
-  static const uint8_t font[] PROGMEM = { // Use PROGMEM to store the font data in flash memory instead of SRAM
-    0x7C, 0x82, 0x82, 0x82, 0x7C, 0x00,   // '0'
-    0xFE, 0x92, 0x92, 0x92, 0x6C, 0x00,   // 'B'
-    0x7C, 0x82, 0x82, 0x82, 0x82, 0x00,   // 'C'
-    0x00, 0x00, 0x01, 0x00, 0x00, 0x00,   // '.'
-
-};
-
-  // Set the cursor position using commands
-  sendCommand(0xB0 + y);        // Set the page address (y is the page)
-  sendCommand(0x00 + (x & 00001111)); // bitwise AND the last 4 bits to set the lower column start address (columns 0-15)
-  sendCommand(0x10 + (x >> 4));  // Set higher column address (shift bits right 4) (columns 16-127)
-
-  // Draw the character
-  uint8_t index = (c * 6);  
-  for (uint8_t i = 0; i < 6; i++) {
-    sendData(pgm_read_byte(&font[index + i])); // Use pgm_read_byte to read from PROGMEM
-  }
-
 }
 
 void drawLargeChar(uint8_t x, uint8_t c) {
@@ -228,8 +220,3 @@ void drawLargeChar(uint8_t x, uint8_t c) {
   }
 }
 
-// Test Character
-// 0xFF, 0x01, 0x01, 0x01, 0x01, 0x81, 0xC1, 0xE1, 0xE1, 0xE1, 0xE1, 0xE1, 0xE1, 0xE1, 0xE1, 0xE1, 0xE1, 0xC1, 0x01, 0x01, 0x01, 0x01, 0x01, 0xFF,
-// 0xFF, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0x03, 0x00, 0x00, 0x80, 0x80, 0xE0, 0xF0, 0xF0, 0x33, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0xFF,
-// 0xFF, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xCC, 0x0E, 0x0F, 0x07, 0x07, 0x01, 0x00, 0x00, 0xC0, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0xFF,
-// 0xFF, 0x80, 0x80, 0x80, 0x80, 0x81, 0x83, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x83, 0x80, 0x80, 0x80, 0x80, 0x80, 0xFF,
