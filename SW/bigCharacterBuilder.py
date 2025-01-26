@@ -37,10 +37,6 @@ def update_display():
         print(", ".join(hex_values[page]))  # Print 24 bytes per row
     print("")  # Blank line after the full page
 
-
-
-    
-
 # Set up the main window
 root = tk.Tk()
 root.title("Font Grid")
