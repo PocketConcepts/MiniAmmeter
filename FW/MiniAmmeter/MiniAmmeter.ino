@@ -22,9 +22,9 @@
 #define R_15 20000
 
 //ADC Pinmap
-#define VCC_PIN PB0
-#define VOUT_PIN PB1
-#define GAIN_FLAG_PIN PB2
+#define VCC_PIN 0
+#define VOUT_PIN 1
+#define GAIN_FLAG_PIN 2
 
 // Kerning offset
 int kerning = 4;
@@ -40,8 +40,8 @@ float calculateGain() {
 }
 
 // Calculate Vref based on resistor values
-float calculateResistiveDivider() {
-  return (float) (R_13 + R_15) / (R_15 * R_13);
+float calculateResistiveDividerRatio() {
+  return (float) (R_13) / (R_15 + R_13);
 }
 
 uint32_t readADC(uint8_t pin, uint8_t windowSize) {
@@ -56,11 +56,11 @@ uint32_t readADC(uint8_t pin, uint8_t windowSize) {
 
 // Read VREF from a specific pin using the readADC function
 uint32_t readVREF(uint8_t averagingWindow) {
-  return readADC(VCC_PIN, averagingWindow) / calculateResistiveDivider();
+  return readADC(VCC_PIN, averagingWindow) * calculateResistiveDividerRatio();
 }
 
 //Uses internal Vref
-uint16_t readADC() {
+uint16_t readInternalADC() {
     // Wait for the conversion to complete
     while (ADCSRA & (1 << ADSC));
 
@@ -75,19 +75,19 @@ float calculateILOAD(uint8_t averagingWindow) {
   uint32_t VOUT_ADC = readADC(VOUT_PIN, averagingWindow); 
   
     // Read Vcc
-    uint16_t VREF_INTERNAL = readADC();
+    uint16_t VREF_INTERNAL = readInternalADC();
 
     float VCC_INTERNAL = (1.1 * 1024) / VREF_INTERNAL;
 
   // Read VREF using the ADC
-  uint32_t VREF_ADC = readADC(VCC_INTERNAL, averagingWindow) / calculateResistiveDivider();
+  //uint32_t VREF_ADC = readADC(VCC_INTERNAL, averagingWindow)();
 
   // Calculate gain
   float GAIN = calculateGain();
 
   // Apply transfer function
-  float ILOAD = ((VOUT_ADC - VREF_ADC) / GAIN) / R_1;
-  return 2500;
+  //float ILOAD = ((VOUT_ADC - VREF_ADC) / GAIN) / R_1;
+  return VCC_INTERNAL;
   //return ILOAD;
 }
 
@@ -120,13 +120,6 @@ void calculate_digit_position() {
     }
 }
 
-int ampToMilliamp(float amp) {
-  float milliamp = (amp * 1000);
-  int intValue = (int)milliamp;
-  return milliamp; 
-
-}
-
 void sendCommand(uint8_t command) {
   uint8_t cmd[] = {0x00, command}; // Command mode and command
   I2CWrite(OLED_ADDR, cmd, sizeof(cmd)); // Write the command
@@ -144,7 +137,6 @@ void setup() {
   pinMode(VOUT_PIN, INPUT);
   pinMode(GAIN_FLAG_PIN, INPUT);
 
-  // OLED initialization sequence
   sendCommand(0xAE); // Display off
   sendCommand(0xD5); sendCommand(0x80); // Set display clock divide ratio
   sendCommand(0xA8); sendCommand(0x1F); // Set multiplex
@@ -163,15 +155,6 @@ void setup() {
 
   clearScreen();
 
-    // Set ADC prescaler (example: prescaler 64)
-  ADCSRA |= (1 << ADPS2) | (1 << ADPS1);
-
-  // Set the ADC reference to Vcc and enable the ADC
-  ADMUX |= (1 << MUX3) | (1 << MUX2);  // MUX=111 for Vcc as input
-
-  // Enable ADC and start conversion
-  ADCSRA |= (1 << ADEN) | (1 << ADSC);
-
   // Permenant A (digit_position[6])
   drawLargeChar(108, 'A');
 
@@ -183,11 +166,11 @@ void loop() {
   calculate_digit_position();
 
   float ILOAD = calculateILOAD(1); 
-  int milliamp = ampToMilliamp(ILOAD);
+
 
   // Loop over each digit position
   for (uint8_t i = 0; i < 4; i++) {
-      int number = getDigitAtPosition(milliamp, i);  // Extract the digit at position i
+      int number = getDigitAtPosition(ILOAD, i);  // Extract the digit at position i
       drawLargeChar(digit_position[i + 1], number);  // Draw the digit at the correct position
   drawLargeChar(digit_position[5], 'm');
 
