@@ -6,6 +6,9 @@
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 32
 
+#define R_
+
+
 void sendCommand(uint8_t command) {
   uint8_t cmd[] = {0x00, command}; // Command mode and command
   I2CWrite(OLED_ADDR, cmd, sizeof(cmd)); // Write the command
@@ -58,22 +61,22 @@ void loop() {
   int kerning = 4;
 
   // Digit positon to starting column
-  int digit0 = -8;
-  int digit1 = 24 - (abs(digit0) * 2);
-  int digit2 = digit1 + 24 - kerning;
-  int digit3 = digit2 + 24 - kerning;
-  int digit4 = digit3 + 24 - kerning;
-  int digit5 = digit4 + 24 - kerning;
+  int digit_0 = -8;
+  int digit_1 = 24 - (abs(digit_0) * 2);
+  int digit_2 = digit_1 + 24 - kerning;
+  int digit_3 = digit_2 + 24 - kerning;
+  int digit_4 = digit_3 + 24 - kerning;
+  int digit_5 = digit_4 + 24 - kerning;
 
   // drawChar(8, 0, 0);
   // delay(500);  
 
-  drawLargeChar(digit0, '-');
-  drawLargeChar(digit1, '0');
-  drawLargeChar(digit2, '0');
-  drawLargeChar(digit3, '0');
-  drawLargeChar(digit4, 'm');
-  drawLargeChar(digit5, 'A');
+  drawLargeChar(digit_0, '-');
+  drawLargeChar(digit_1, '0');
+  drawLargeChar(digit_2, '0');
+  drawLargeChar(digit_3, '0');
+  drawLargeChar(digit_4, 'm');
+  drawLargeChar(digit_5, 'A');
 
   delay(500);
   clearScreen();
