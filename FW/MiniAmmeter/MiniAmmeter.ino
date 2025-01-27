@@ -46,7 +46,7 @@ float calculateResistiveDividerRatio() {
 
 uint16_t readADC(uint8_t pin, uint8_t windowSize) {
     uint16_t sum = 0;
-    uint8_t samples[windowSize];  // Array to store samples in SRAM
+    uint16_t samples[windowSize];  // Array to store samples in SRAM
     for (uint8_t i = 0; i < windowSize; i++) {
         samples[i] = analogRead(pin);  // Read ADC value
         sum += samples[i];
@@ -71,8 +71,8 @@ float calculateILOAD(uint8_t averagingWindow) {
 
   // Apply transfer function
   //float ILOAD = ((VOUT_ADC - VREF_ADC) / GAIN) / R_1;
-  float ILOAD = VOUT_ADC - 0x1FF;
-  return -1245.0f;
+  float ILOAD = VOUT_ADC - 511.0f;
+  return ILOAD;
 
 }
 
