@@ -64,19 +64,12 @@ uint32_t readVREF(uint8_t averagingWindow) {
 //Calculate ILOAD based on transfer function
 float calculateILOAD(uint8_t averagingWindow) {
 
-  uint16_t VOUT_ADC = analogRead(2); 
+  uint16_t VOUT_ADC = analogRead(1); 
 
   //int VREF_ADC = readVREF(averagingWindow);
 
   // PB2, PB3, PB4, PB5 These are ADC pins
 
-    // Calculate gain
-  //float GAIN = calculateGain();
-
-  //float VREF = VREF_ADC * 1023 / 5
-
-  // Apply transfer function
-  float ILOAD = ((VOUT_ADC - 2.5) / 10) / R_1;
   int VOUT_ADC_int = (int)VOUT_ADC;
 
   return VOUT_ADC_int;
@@ -160,7 +153,7 @@ void loop() {
 
   int numDigits = 0;
   int temp = ILOAD; // Temporary variable to count digits
-  
+
   do {
       temp /= 10;
       numDigits++;
