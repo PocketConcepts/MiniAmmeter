@@ -22,31 +22,31 @@
 #define R_15 20000
 
 //ADC Pinmap
-#define VCC_PIN 0
-#define VOUT_PIN 1
-#define GAIN_FLAG_PIN 2
+#define VREF PB0 // ( EVAL Mod required if using analogRead(EXTERNAL) )
+#define VOUT_PIN 1 // ( PCB Mod required ) 
+#define VCC_PIN 0 // ( PCB Mod required ) 
 
 // Kerning offset
-int kerning = 4;
+uint8_t  kerning = 4;
 
 // Array to store digit positions
-int digit_position[7];
+uint8_t  digit_position[7];
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
-// Calculate gain based on resistor values
-// int calculateGain() {
-//   return (int) R_2 / R_3;
-// }
+//Calculate gain based on resistor values
+float calculateGain() {
+  return (R_2 / R_3);
+}
 
-// Calculate Vref based on resistor values
-// int calculateResistiveDividerRatio() {
-//   return (int) (R_13) / (R_15 + R_13);
-// }
+//Calculate Vref based on resistor values
+float calculateResistiveDividerRatio() {
+  return ((R_13) / (R_15 + R_13));
+}
 
-uint32_t readADC(uint8_t pin, uint8_t windowSize) {
-    uint32_t sum = 0;
-    uint16_t samples[windowSize];  // Array to store samples in SRAM
+uint16_t readADC(uint8_t pin, uint8_t windowSize) {
+    uint16_t sum = 0;
+    uint8_t samples[windowSize];  // Array to store samples in SRAM
     for (uint8_t i = 0; i < windowSize; i++) {
         samples[i] = analogRead(pin);  // Read ADC value
         sum += samples[i];
@@ -54,26 +54,26 @@ uint32_t readADC(uint8_t pin, uint8_t windowSize) {
     return sum / windowSize;  // Return the average
 }
 
-// Read VREF from a specific pin using the readADC function
-uint32_t readVREF(uint8_t averagingWindow) {
-   int adcReading = readADC(5, averagingWindow);
-   return adcReading;
-
-}
-
-//Calculate ILOAD based on transfer function
+// Calculate ILOAD based on transfer function
 float calculateILOAD(uint8_t averagingWindow) {
 
-  uint16_t VOUT_ADC = analogRead(1); 
+  // Read VOUT using the ADC
+  uint16_t VOUT_ADC = readADC(VOUT_PIN, averagingWindow); 
 
-  //int VREF_ADC = readVREF(averagingWindow);
+  // Read VCC using the ADC (only read once for consistency)
+  uint16_t VCC_ADC = readADC(VCC_PIN, averagingWindow); 
 
-  // PB2, PB3, PB4, PB5 These are ADC pins
+  // Calculate VREF (~2.5V) based on VCC and the resistive divider ratio
+  uint16_t VREF_ADC = VCC_ADC / calculateResistiveDividerRatio();
 
-  int VOUT_ADC_int = (int)VOUT_ADC;
+  // Calculate gain
+  float GAIN = calculateGain();
 
-  return VOUT_ADC_int;
-  //return ILOAD;
+  // Apply transfer function
+  //float ILOAD = ((VOUT_ADC - VREF_ADC) / GAIN) / R_1;
+  float ILOAD = VOUT_ADC - 0x1FF;
+  return -1245.0f;
+
 }
 
 int getDigitAtPosition(int value, int position) {
@@ -118,9 +118,10 @@ void sendData(uint8_t data) {
 void setup() {
   I2CInit(3, 4, 1); // Initialize I2C with custom SDA and SCL pins and optional delay count
 
-  pinMode(PB2, INPUT);   // PB2 as input
-  pinMode(PB0, INPUT);  // Analogue ref as input
-  pinMode(PB5, INPUT);  // Analogue ref as input
+  pinMode(VREF, INPUT);   // PB2 as input
+  pinMode(VOUT_PIN, INPUT);  // Analogue ref as input
+  pinMode(VCC_PIN, INPUT);  // Analogue ref as input
+
   //Take VCC as VREF
   analogReference(DEFAULT);
 
@@ -150,29 +151,11 @@ void loop() {
   calculate_digit_position();
 
   float ILOAD = calculateILOAD(1); 
-
-  int numDigits = 0;
-  int temp = ILOAD; // Temporary variable to count digits
-
-  do {
-      temp /= 10;
-      numDigits++;
-  } while (temp > 0);
-
-  // Right-align the digits by starting from the rightmost position
-  for (uint8_t i = 0; i < numDigits; i++) {
-      int number = getDigitAtPosition(ILOAD, i);  // Extract the digit at position i
-      drawLargeChar(digit_position[5 - numDigits + i], number);  // Adjust position for right alignment
-  }
+  
+  drawRightAlignedNumber(ILOAD);
 
   drawLargeChar(digit_position[5], 'm');
-
-  
-
-  // // Draw negative sign if ILOAD is negative
-  // drawNegative(ILOAD, digit_position[0]);
-  // drawLargeChar(108, 'A');
-  // delay(100);
+  drawLargeChar(108, 'A');
 
   clearScreen();
 
@@ -193,6 +176,30 @@ void drawNegative(float load, int position) {
   if (load < 0) 
     drawLargeChar(position, '-');
     
+}
+
+// Function to draw a right-aligned number
+void drawRightAlignedNumber(int number) {
+    int numDigits = 0;
+    int temp = abs(number); // Use absolute value to count digits
+
+    // Count how many digits the number has
+    do {
+        temp /= 10;
+        numDigits++;
+    } while (temp > 0);
+
+    // Right-align the digits by starting from the rightmost position
+    for (uint8_t i = 0; i < numDigits; i++) {
+        int digit = getDigitAtPosition(abs(number), i);  // Extract the digit at position i
+        // Adjust the position for right alignment
+        drawLargeChar(digit_position[5 - numDigits + i], digit);
+    }
+
+    // Draw the negative sign if the number is negative
+    if (number < 0) {
+        drawNegative(number, digit_position[0]); 
+    }
 }
 
 void drawLargeChar(uint8_t x, uint8_t c) {
