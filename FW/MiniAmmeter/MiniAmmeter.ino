@@ -35,14 +35,14 @@ int digit_position[7];
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 // Calculate gain based on resistor values
-float calculateGain() {
-  return (float) R_2 / R_3;
-}
+// int calculateGain() {
+//   return (int) R_2 / R_3;
+// }
 
 // Calculate Vref based on resistor values
-float calculateResistiveDividerRatio() {
-  return (float) (R_13) / (R_15 + R_13);
-}
+// int calculateResistiveDividerRatio() {
+//   return (int) (R_13) / (R_15 + R_13);
+// }
 
 uint32_t readADC(uint8_t pin, uint8_t windowSize) {
     uint32_t sum = 0;
@@ -56,38 +56,30 @@ uint32_t readADC(uint8_t pin, uint8_t windowSize) {
 
 // Read VREF from a specific pin using the readADC function
 uint32_t readVREF(uint8_t averagingWindow) {
-  return readADC(VCC_PIN, averagingWindow) * calculateResistiveDividerRatio();
-}
+   int adcReading = readADC(5, averagingWindow);
+   return adcReading;
 
-//Uses internal Vref
-uint16_t readInternalADC() {
-    // Wait for the conversion to complete
-    while (ADCSRA & (1 << ADSC));
-
-    // Read the result (ADCL and ADCH)
-    uint16_t result = ADC;
-    return result;
 }
 
 //Calculate ILOAD based on transfer function
 float calculateILOAD(uint8_t averagingWindow) {
-  // Read VOUT using the ADC
-  uint32_t VOUT_ADC = readADC(VOUT_PIN, averagingWindow); 
-  
-    // Read Vcc
-    uint16_t VREF_INTERNAL = readInternalADC();
 
-    float VCC_INTERNAL = (1.1 * 1024) / VREF_INTERNAL;
+  uint16_t VOUT_ADC = analogRead(2); 
 
-  // Read VREF using the ADC
-  //uint32_t VREF_ADC = readADC(VCC_INTERNAL, averagingWindow)();
+  //int VREF_ADC = readVREF(averagingWindow);
 
-  // Calculate gain
-  float GAIN = calculateGain();
+  // PB2, PB3, PB4, PB5 These are ADC pins
+
+    // Calculate gain
+  //float GAIN = calculateGain();
+
+  //float VREF = VREF_ADC * 1023 / 5
 
   // Apply transfer function
-  //float ILOAD = ((VOUT_ADC - VREF_ADC) / GAIN) / R_1;
-  return VCC_INTERNAL;
+  float ILOAD = ((VOUT_ADC - 2.5) / 10) / R_1;
+  int VOUT_ADC_int = (int)VOUT_ADC;
+
+  return VOUT_ADC_int;
   //return ILOAD;
 }
 
@@ -133,9 +125,11 @@ void sendData(uint8_t data) {
 void setup() {
   I2CInit(3, 4, 1); // Initialize I2C with custom SDA and SCL pins and optional delay count
 
-  pinMode(VCC_PIN, INPUT);
-  pinMode(VOUT_PIN, INPUT);
-  pinMode(GAIN_FLAG_PIN, INPUT);
+  pinMode(PB2, INPUT);   // PB2 as input
+  pinMode(PB0, INPUT);  // Analogue ref as input
+  pinMode(PB5, INPUT);  // Analogue ref as input
+  //Take VCC as VREF
+  analogReference(DEFAULT);
 
   sendCommand(0xAE); // Display off
   sendCommand(0xD5); sendCommand(0x80); // Set display clock divide ratio
@@ -155,9 +149,6 @@ void setup() {
 
   clearScreen();
 
-  // Permenant A (digit_position[6])
-  drawLargeChar(108, 'A');
-
 }
 
 void loop() {
@@ -167,17 +158,30 @@ void loop() {
 
   float ILOAD = calculateILOAD(1); 
 
+  int numDigits = 0;
+  int temp = ILOAD; // Temporary variable to count digits
+  
+  do {
+      temp /= 10;
+      numDigits++;
+  } while (temp > 0);
 
-  // Loop over each digit position
-  for (uint8_t i = 0; i < 4; i++) {
+  // Right-align the digits by starting from the rightmost position
+  for (uint8_t i = 0; i < numDigits; i++) {
       int number = getDigitAtPosition(ILOAD, i);  // Extract the digit at position i
-      drawLargeChar(digit_position[i + 1], number);  // Draw the digit at the correct position
-  drawLargeChar(digit_position[5], 'm');
-
+      drawLargeChar(digit_position[5 - numDigits + i], number);  // Adjust position for right alignment
   }
 
-  // Draw negative sign if ILOAD is negative
-  drawNegative(ILOAD, digit_position[0]);
+  drawLargeChar(digit_position[5], 'm');
+
+  
+
+  // // Draw negative sign if ILOAD is negative
+  // drawNegative(ILOAD, digit_position[0]);
+  // drawLargeChar(108, 'A');
+  // delay(100);
+
+  clearScreen();
 
 }
 
@@ -280,10 +284,10 @@ void drawLargeChar(uint8_t x, uint8_t c) {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 
     // .
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x07, 0x07, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    // 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    // 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    // 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    // 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x07, 0x07, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 
   };
 
