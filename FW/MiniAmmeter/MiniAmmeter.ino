@@ -59,20 +59,20 @@ float calculateILOAD(uint8_t averagingWindow) {
 
   // Read VOUT using the ADC
   //uint16_t VOUT_ADC = readADC(VOUT_PIN, averagingWindow); 
-  uint16_t VOUT_ADC = analogRead(VOUT_PIN); 
+  int16_t VOUT_ADC = analogRead(VOUT_PIN); 
 
   // Read VCC using the ADC (only read once for consistency)
   uint16_t VCC_ADC = readADC(VCC_PIN, averagingWindow); 
 
   // Calculate VREF (~2.5V) based on VCC and the resistive divider ratio
-  uint16_t VREF_ADC = ( VCC_ADC / calculateResistiveDividerRatio() );
+  uint16_t VREF_ADC = ( VCC_ADC * calculateResistiveDividerRatio() );
 
   // Calculate gain
   float GAIN = calculateGain();
-
-  // Apply transfer function
-  //float ILOAD = (((VOUT_ADC - 511.0f) * (VCC_ADC / 1023)) / GAIN) / R_1;
-  float ILOAD = (VOUT_ADC);
+  
+  float voltage = (VOUT_ADC - VREF_ADC) * (VCC_ADC / 1023.0f); // Convert ADC to voltage
+  float adjustedVoltage = voltage / GAIN;                   // Adjust for circuit gain
+  float ILOAD = adjustedVoltage / R_1;                      // Apply Ohm's Law for current
   
   return ILOAD;
 
@@ -98,8 +98,8 @@ int getDigitAtPosition(int value, int position) {
 }
 // Calculate the starting position of a largeChar
 void calculate_digit_position() {
-    digit_position[0] = -8;
-    digit_position[1] = 8;
+    digit_position[0] = 0;
+    digit_position[1] = 12;
     // Calculate positions for digits 2 to 5
     for (int i = 2; i < 7; i++) {
         digit_position[i] = digit_position[i - 1] + 24 - kerning;
@@ -193,17 +193,17 @@ void drawRightAlignedNumber(int number) {
         // Adjust the position for right alignment
         drawLargeChar(digit_position[5 - numDigits + i], digit);
 
-        // Clear the unused digit positions with a blank character
-    for (uint8_t i = 1; i < (5 - numDigits); i++) {
-        drawLargeChar(digit_position[i], ' '); // Clear positions to the left of the number
-    }
+          // Clear the unused digit positions with a blank character
+      for (uint8_t i = 1; i < (5 - numDigits); i++) {
+          drawLargeChar(digit_position[i], ' '); // Clear positions to the left of the number
+      }
 
     // Draw the negative sign if the number is negative
     if (number < 0) {
-        drawChar(6, 1, '-');
+        drawChar(2, 1, '-');
     }
     else {
-        drawChar(6, 1 , ' ');    
+        drawChar(2, 1, ' ');
 
     }
   }
