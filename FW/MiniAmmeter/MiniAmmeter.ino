@@ -43,21 +43,23 @@ float calculateResistiveDividerRatio() {
   return ((R_13) / (R_15 + R_13));
 }
 // average ADC readings 
-uint16_t readADC(uint8_t pin, uint8_t windowSize) {
-    uint32_t sum = 0;  // Use uint32_t to avoid overflow with larger window sizes
-    for (uint16_t i = 0; i < windowSize; i++) {
-        sum += analogRead(pin);  // Accumulate ADC readings
+uint32_t readADC(uint8_t pin, uint8_t windowSize) {
+    uint32_t sum = 0;
+    uint16_t samples[windowSize];  // Array to store samples in SRAM
+    for (uint8_t i = 0; i < windowSize; i++) {
+        samples[i] = analogRead(pin);  // Read ADC value
+        sum += samples[i];
         delay(1);
     }
-    
-    return (uint16_t)(sum / windowSize);  // Return the average of the samples
+    return ( sum / windowSize );  // Return the average
 }
 
 // Calculate ILOAD based on transfer function
 float calculateILOAD(uint8_t averagingWindow) {
 
   // Read VOUT using the ADC
-  uint16_t VOUT_ADC = readADC(VOUT_PIN, averagingWindow); 
+  //uint16_t VOUT_ADC = readADC(VOUT_PIN, averagingWindow); 
+  uint16_t VOUT_ADC = analogRead(VOUT_PIN); 
 
   // Read VCC using the ADC (only read once for consistency)
   uint16_t VCC_ADC = readADC(VCC_PIN, averagingWindow); 
