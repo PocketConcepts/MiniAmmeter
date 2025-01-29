@@ -50,6 +50,9 @@ uint32_t readADC(uint8_t pin, uint8_t windowSize) {
         samples[i] = analogRead(pin);  // Read ADC value
         sum += samples[i];
         delay(1);
+        delay(1);
+        delay(1);
+        delay(1);
     }
     return ( sum / windowSize );  // Return the average
 }
@@ -70,11 +73,11 @@ float calculateILOAD(uint8_t averagingWindow) {
   // Calculate gain
   float GAIN = calculateGain();
   
-  float voltage = (VOUT_ADC - VREF_ADC) * (VCC_ADC / 1023.0f); // Convert ADC to voltage
+  float voltage = (VOUT_ADC - 511.0f - VREF_ADC) * (VCC_ADC / 1023.0f); // Convert ADC to voltage
   float adjustedVoltage = voltage / GAIN;                   // Adjust for circuit gain
   float ILOAD = adjustedVoltage / R_1;                      // Apply Ohm's Law for current
   
-  return ILOAD;
+  return ILOAD * 5;
 
 }
 // Extract specific digit from int
@@ -122,6 +125,7 @@ void setup() {
   pinMode(VREF, INPUT);   // PB2 as input
   pinMode(VOUT_PIN, INPUT);  // Analogue ref as input
   pinMode(VCC_PIN, INPUT);  // Analogue ref as input
+  pinMode(PB2, INPUT); //Set OLD AIN to Hi Z
 
   //Take VCC as VREF
   analogReference(DEFAULT);
