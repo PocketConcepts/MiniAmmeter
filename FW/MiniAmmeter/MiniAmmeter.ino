@@ -34,52 +34,50 @@ uint8_t  digit_position[7];
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
-//Calculate gain based on resistor values
-float calculateGain() {
-  return (R_2 / R_3);
+// Calculate gain based on resistor values
+int calculateGain() { //gain <1.0 will collapse to 0
+  return (R_2 / R_3); //integer division to save memory
 }
+
 //Calculate Vref based on resistor values
-float calculateResistiveDividerRatio() {
-  return ((R_13) / (R_15 + R_13));
+int calculateResistiveDividerRatio() { //inverse (so it's int)
+  return ((R_15 + R_13) / R_13);  //integer division to save memory
 }
-// average ADC readings 
-uint32_t readADC(uint8_t pin, uint8_t windowSize) {
-    uint32_t sum = 0;
-    uint16_t samples[windowSize];  // Array to store samples in SRAM
+
+// Average ADC readings
+float readADC(uint8_t pin, uint8_t windowSize) {
+    uint16_t sum = 0;
     for (uint8_t i = 0; i < windowSize; i++) {
-        samples[i] = analogRead(pin);  // Read ADC value
-        sum += samples[i];
-        delay(1);
-        delay(1);
-        delay(1);
+        sum += analogRead(pin);  // Read ADC value
         delay(1);
     }
-    return ( sum / windowSize );  // Return the average
+    return (float)sum / (float)windowSize;  // Return float average. Cast to float explicity.
 }
 
 // Calculate ILOAD based on transfer function
 float calculateILOAD(uint8_t averagingWindow) {
 
   // Read VOUT using the ADC
-  //uint16_t VOUT_ADC = readADC(VOUT_PIN, averagingWindow); 
-  int16_t VOUT_ADC = analogRead(VOUT_PIN); 
+  float VOUT_ADC = readADC(VOUT_PIN, averagingWindow); 
 
   // Read VCC using the ADC (only read once for consistency)
-  uint16_t VCC_ADC = readADC(VCC_PIN, averagingWindow); 
+  float VCC_ADC = readADC(VCC_PIN, averagingWindow); 
 
   // Calculate VREF (~2.5V) based on VCC and the resistive divider ratio
-  uint16_t VREF_ADC = ( VCC_ADC * calculateResistiveDividerRatio() );
+  float VREF_ADC = (float(VCC_ADC) / calculateResistiveDividerRatio());  //doesn't really need to be float 
 
   // Calculate gain
-  float GAIN = calculateGain();
-  
-  float voltage = (VOUT_ADC - 511.0f - VREF_ADC) * (VCC_ADC / 1023.0f); // Convert ADC to voltage
-  float adjustedVoltage = voltage / GAIN;                   // Adjust for circuit gain
-  float ILOAD = adjustedVoltage / R_1;                      // Apply Ohm's Law for current
-  
-  return ILOAD * 5;
+  int GAIN = calculateGain();
+
+  float voltage = float(VOUT_ADC - VREF_ADC) * float(VCC_ADC / 1023.0f); // Convert ADC to voltage
+
+  return voltage * 5.0f; //voltage is essentially ILOAD with this gain.
+
+  //float adjustedVoltage = voltage / GAIN;                   // Adjust for circuit gain
+  //float ILOAD = adjustedVoltage / R_1;                      // Apply Ohm's Law for current
 
 }
+
 // Extract specific digit from int
 int getDigitAtPosition(int value, int position) {
     int digits[10]; // Assuming value won't exceed 10 digits
@@ -165,7 +163,7 @@ void mainFunction() {
   // Calculate where to digit positions in display
   calculate_digit_position(); 
   
-  float ILOAD = calculateILOAD(32);  // Calculate 16 average of load
+  float ILOAD = calculateILOAD(1);  // Calculate 16 average of load
   drawRightAlignedNumber(ILOAD);
   
 }
