@@ -44,34 +44,36 @@ int calculateResistiveDividerRatio() { //inverse (so it's int)
   return ((R_15 + R_13) / R_13);  //integer division to save memory
 }
 
-// Average ADC readings
-float readADC(uint8_t pin, uint8_t windowSize) {
-    uint16_t sum = 0;
+// Average ADC readings with integer scaling
+uint16_t readADC(uint8_t pin, uint8_t windowSize) {
+    uint32_t sum = 0;  
     for (uint8_t i = 0; i < windowSize; i++) {
         sum += analogRead(pin);  // Read ADC value
-        delay(1);
+        delay(1);  
     }
-    return (float)sum / (float)windowSize;  // Return float average. Cast to float explicity.
+    return sum * 1000 / windowSize;  // Return scaled average (1000x larger)
 }
 
 // Calculate ILOAD based on transfer function
 float calculateILOAD(uint8_t averagingWindow) {
 
   // Read VOUT using the ADC
-  float VOUT_ADC = readADC(VOUT_PIN, averagingWindow); 
+  uint16_t VOUT_ADC = readADC(VOUT_PIN, averagingWindow); 
 
   // Read VCC using the ADC (only read once for consistency)
-  float VCC_ADC = readADC(VCC_PIN, averagingWindow); 
+  uint16_t VCC_ADC = readADC(VCC_PIN, averagingWindow); 
 
   // Calculate VREF (~2.5V) based on VCC and the resistive divider ratio
-  float VREF_ADC = (float(VCC_ADC) / calculateResistiveDividerRatio());  //doesn't really need to be float 
+  uint16_t VREF_ADC = (VCC_ADC) / calculateResistiveDividerRatio();  //doesn't really need to be float 
 
   // Calculate gain
-  int GAIN = calculateGain();
+  uint16_t GAIN = calculateGain();
 
-  float voltage = float(VOUT_ADC - VREF_ADC) * float(VCC_ADC / 1023.0f); // Convert ADC to voltage
+  uint16_t result = 5 * (VOUT_ADC - VREF_ADC) * (VCC_ADC); // Convert ADC to voltage
+  
+  float voltage = float(result) / (1000.0f);
 
-  return voltage * 5.0f; //voltage is essentially ILOAD with this gain.
+  return voltage; //voltage is essentially ILOAD with this gain.
 
   //float adjustedVoltage = voltage / GAIN;                   // Adjust for circuit gain
   //float ILOAD = adjustedVoltage / R_1;                      // Apply Ohm's Law for current
@@ -163,7 +165,7 @@ void mainFunction() {
   // Calculate where to digit positions in display
   calculate_digit_position(); 
   
-  float ILOAD = calculateILOAD(1);  // Calculate 16 average of load
+  float ILOAD = calculateILOAD(32);  // Calculate 16 average of load
   drawRightAlignedNumber(ILOAD);
   
 }
