@@ -35,44 +35,42 @@ uint8_t  digit_position[7];
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 // Calculate gain based on resistor values
-int calculateGain() { //gain <1.0 will collapse to 0
+uint8_t calculateGain() { //gain <1.0 will collapse to 0
   return (R_2 / R_3); //integer division to save memory
 }
 
 //Calculate Vref based on resistor values
-int calculateResistiveDividerRatio() { //inverse (so it's int)
-  return ((R_15 + R_13) / R_13);  //integer division to save memory
+uint8_t calculateResistiveDividerRatio() { //inverse (so it's int)
+  return uint16_t(R_15 + R_13) / uint16_t(R_13);  //integer division to save memory
 }
 
 // Average ADC readings with integer scaling
-uint16_t readADC(uint8_t pin, uint8_t windowSize) {
+float readADC(uint8_t pin, uint32_t windowSize) {
     uint32_t sum = 0;  
-    for (uint8_t i = 0; i < windowSize; i++) {
+    for (uint32_t i = 0; i < windowSize; i++) {
         sum += analogRead(pin);  // Read ADC value
-        delay(1);  
+        delayMicroseconds(10);  
     }
-    return sum * 1000 / windowSize;  // Return scaled average (1000x larger)
+    return (float)sum  / (float)windowSize;  // Return scaled average (1000x larger)
 }
 
 // Calculate ILOAD based on transfer function
 float calculateILOAD(uint8_t averagingWindow) {
 
   // Read VOUT using the ADC
-  uint16_t VOUT_ADC = readADC(VOUT_PIN, averagingWindow); 
+  float VOUT_ADC = readADC(VOUT_PIN, averagingWindow); 
 
   // Read VCC using the ADC (only read once for consistency)
-  uint16_t VCC_ADC = readADC(VCC_PIN, averagingWindow); 
+  float VCC_ADC = readADC(VCC_PIN, averagingWindow); 
 
   // Calculate VREF (~2.5V) based on VCC and the resistive divider ratio
-  uint16_t VREF_ADC = (VCC_ADC) / calculateResistiveDividerRatio();  //doesn't really need to be float 
+  float VREF_ADC = (float(VCC_ADC) / calculateResistiveDividerRatio());  //doesn't really need to be float 
 
   // Calculate gain
-  uint16_t GAIN = calculateGain();
+  uint8_t GAIN = calculateGain();
 
-  uint16_t result = 5 * (VOUT_ADC - VREF_ADC) * (VCC_ADC); // Convert ADC to voltage
+  float voltage = float(VOUT_ADC - VREF_ADC) * float(VCC_ADC/ 1023.0f) * 5.0f / 1.15f; // Convert ADC to voltage
   
-  float voltage = float(result) / (1000.0f);
-
   return voltage; //voltage is essentially ILOAD with this gain.
 
   //float adjustedVoltage = voltage / GAIN;                   // Adjust for circuit gain
@@ -150,8 +148,11 @@ void setup() {
 
   calculate_digit_position(); //not sure why this has to be in loop
   drawLargeChar(digit_position[6], 'A');
-  drawLargeChar(digit_position[5], 'm');
 
+  // Set the ADC prescaler to 128
+  ADCSRA |= (1<<ADPS2); // Set ADPS2
+  ADCSRA |= (1<<ADPS1); // Set ADPS1
+  ADCSRA |= (1<<ADPS0); // Set ADPS0
 
 }
 
@@ -165,8 +166,8 @@ void mainFunction() {
   // Calculate where to digit positions in display
   calculate_digit_position(); 
   
-  float ILOAD = calculateILOAD(32);  // Calculate 16 average of load
-  drawRightAlignedNumber(ILOAD);
+  float ILOAD = calculateILOAD(1023);  // Calculate average of load
+  drawDecimalNumber(ILOAD);
   
 }
 // clear whole screen
@@ -181,36 +182,42 @@ void clearScreen() {
   }
 }
 // Draw a right-aligned number
-void drawRightAlignedNumber(int number) {
-    int numDigits = 0;
-    int temp = abs(number); // Use absolute value to count digits
 
-    // Count how many digits the number has
+void drawDecimalNumber(float number) {
+    // Convert from mA to A
+    float amps = float(number) / 1000.0f;
+
+    // Truncate to two decimal places
+    int integerPart = (int)amps;  // Get integer part
+    int decimalPart = (int)(abs(amps) * 100) % 100;  // Get first two decimal digits (use absolute value)
+
+    // Handle negative numbers
+    if (amps < 0) {
+        drawLargeChar(digit_position[1], '-');
+        integerPart = -integerPart;  // Make integer part positive for the display logic
+    } else {
+       drawLargeChar(digit_position[1], ' ');
+    }
+
+    // Draw the integer part (before the decimal point)
+    int numDigits = 0;
+    int temp = integerPart;
     do {
         temp /= 10;
         numDigits++;
     } while (temp > 0);
-
-    // Right-align the digits by starting from the rightmost position
+    
     for (uint8_t i = 0; i < numDigits; i++) {
-        int digit = getDigitAtPosition(abs(number), i);  // Extract the digit at position i
-        // Adjust the position for right alignment
-        drawLargeChar(digit_position[5 - numDigits + i], digit);
-
-          // Clear the unused digit positions with a blank character
-      for (uint8_t i = 1; i < (5 - numDigits); i++) {
-          drawLargeChar(digit_position[i], ' '); // Clear positions to the left of the number
-      }
-
-    // Draw the negative sign if the number is negative
-    if (number < 0) {
-        drawChar(2, 1, '-');
+        int digit = getDigitAtPosition(integerPart, i);  // Extract the digit
+        drawLargeChar(digit_position[6 - (numDigits + 3)], digit);  // Draw the digit
     }
-    else {
-        drawChar(2, 1, ' ');
 
-    }
-  }
+    // Draw the decimal point
+    drawLargeChar(digit_position[6 - (numDigits + 2)], '.');
+
+    // Draw the decimal part (after the decimal point), truncated to two digits
+    drawLargeChar(digit_position[6 - (numDigits + 1)], decimalPart / 10);  // First decimal digit
+    drawLargeChar(digit_position[6 - (numDigits + 0)], decimalPart % 10);  // Second decimal digit
 }
 
 void drawLargeChar(uint8_t x, uint8_t c) {
@@ -277,10 +284,10 @@ void drawLargeChar(uint8_t x, uint8_t c) {
     0x00, 0x03, 0x03, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x03, 0x00, 0x00, 
 
     // m
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-    0x00, 0x00, 0x00, 0xFF, 0xFF, 0x06, 0x03, 0xFF, 0xFF, 0x03, 0x07, 0xFE, 0xFC, 0x00, 0x00, 0x00, 
-    0x00, 0x00, 0x00, 0x07, 0x07, 0x00, 0x00, 0x07, 0x07, 0x00, 0x00, 0x07, 0x07, 0x00, 0x00, 0x00, 
+    // 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+    // 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+    // 0x00, 0x00, 0x00, 0xFF, 0xFF, 0x06, 0x03, 0xFF, 0xFF, 0x03, 0x07, 0xFE, 0xFC, 0x00, 0x00, 0x00, 
+    // 0x00, 0x00, 0x00, 0x07, 0x07, 0x00, 0x00, 0x07, 0x07, 0x00, 0x00, 0x07, 0x07, 0x00, 0x00, 0x00, 
 
     // A
     0x00, 0x00, 0x00, 0x00, 0xC0, 0xC0, 0xE0, 0xE0, 0xE0, 0xC0, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 
@@ -323,11 +330,11 @@ void drawLargeChar(uint8_t x, uint8_t c) {
     case 7: index = 7; break;
     case 8: index = 8; break;
     case 9: index = 9; break;
-    case 'm': index = 10; break;
-    case 'A': index = 11; break;
-    case '-': index = 12; break;
-    case '.': index = 13; break;
-    case ' ': index = 14; break;
+    //case 'm': index = 10; break;
+    case 'A': index = 10; break;
+    case '-': index = 11; break;
+    case '.': index = 12; break;
+    case ' ': index = 13; break;
     default: index = 0; break;  // Default to '0' if character is not recognized
 
   }
@@ -348,32 +355,3 @@ void drawLargeChar(uint8_t x, uint8_t c) {
   }
 }
  
-void drawChar(uint8_t x, uint8_t y, char c) {
-  static const uint8_t font[] = {
-    // Current just used for '-' but could display smaller 6x8 characters
-    0xC0, 0xC0, 0xC0, 0xC0, 0xC0, 0xC0,  // '-'
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // ' '
-
-  };
-
-  // Set the cursor position using commands
-  sendCommand(0xB0 + y);        // Set the page address (y is the page)
-  sendCommand(0x00 + (x & 0x0F)); // bitwise AND the last 4 bits to set the lower column start address (columns 0-15)
-  sendCommand(0x10 + (x >> 4));  // Set higher column address (shift bits right 4) (columns 16-127)
-
-  // Define the mapping from characters to font array indices
-  uint32_t index;
-  
-  switch (c) {
-    case '-': index = 0; break;
-    case ' ': index = 1; break;
-    default: index = 0; break;  // Default to '0' if character is not recognised
-
-  }
-
-  uint32_t offset = index * 6; // Calculate starting index position for character c
-  
-  for (uint8_t i = 0; i < 6; i++) {
-    sendData(font[offset + i]); // Send each byte of the character data
-  }
-}
