@@ -69,7 +69,7 @@ float calculateILOAD(uint8_t averagingWindow) {
   // Calculate gain
   uint8_t GAIN = calculateGain();
 
-  float voltage = float(VOUT_ADC - VREF_ADC) * float(VCC_ADC/ 1023.0f) * 5.0f / 1.15f; // Convert ADC to voltage
+  float voltage = float(VOUT_ADC - VREF_ADC) * float(VCC_ADC/ 1023.0f) * (5.0f / 1.126f); // Convert ADC to voltage
   
   return voltage; //voltage is essentially ILOAD with this gain.
 
@@ -126,7 +126,7 @@ void setup() {
   pinMode(PB2, INPUT); //Set OLD AIN to Hi Z
 
   //Take VCC as VREF
-  analogReference(DEFAULT);
+  analogReference(EXTERNAL);
 
   sendCommand(0xAE); // Display off
   sendCommand(0xD5); sendCommand(0x80); // Set display clock divide ratio
@@ -188,7 +188,7 @@ void drawDecimalNumber(float number) {
     float amps = float(number) / 1000.0f;
 
     // Truncate to two decimal places
-    int integerPart = (int)amps;  // Get integer part
+    int integerPart = (int)(amps);  // Get integer part
     int decimalPart = (int)(abs(amps) * 100) % 100;  // Get first two decimal digits (use absolute value)
 
     // Handle negative numbers
@@ -351,6 +351,7 @@ void drawLargeChar(uint8_t x, uint8_t c) {
     for (uint8_t i = 0; i < 16; i++) {
       uint8_t data = pgm_read_byte(&font[offset + page * 16 + i]);
       sendData(data);
+      
     }
   }
 }
